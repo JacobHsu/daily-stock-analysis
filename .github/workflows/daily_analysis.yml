@@ -1,9 +1,9 @@
 name: 每日股票分析
 
 on:
-  # 定時觸發 - 每天台灣時間 22:00 (UTC 14:00)
+  # 定時觸發 - 每天台灣時間 22:30 (UTC 14:30)
   schedule:
-    - cron: '0 14 * * 1-5'     # 週一到週五，UTC 14:00 = 台灣時間 22:00
+    - cron: '30 14 * * 1-5'     # 週一到週五，UTC 14:30 = 台灣時間 22:30
 
   # 手動觸發
   workflow_dispatch:
@@ -31,6 +31,8 @@ concurrency:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 30
 
     steps:
@@ -186,6 +188,27 @@ jobs:
             python main.py --no-market-review $FORCE_RUN_ARG
           else
             python main.py $FORCE_RUN_ARG
+          fi
+
+      - name: 更新 GitHub Pages 首頁 (docs/README.md)
+        run: |
+          # reports 已由 Python 腳本自動同步至 docs/README.md
+          # 檢查是否有變動，有的話才進行 Commit 與 Push
+          if [ -f "docs/README.md" ]; then
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            
+            git add docs/README.md
+            
+            if ! git diff --staged --quiet; then
+              git commit -m "docs: 自動更新最新分析報告 [skip ci]"
+              git push
+              echo "✅ 已成功將最新報告同步到 Github Pages (docs/README.md)"
+            else
+              echo "報告內容無變動，無需更新。"
+            fi
+          else
+            echo "⚠️ 未找到 docs/README.md，跳過更新。"
           fi
 
       - name: 上傳分析報告

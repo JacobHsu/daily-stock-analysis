@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Daily Stock Analysis API",
-    "description": "A股自選股智能分析系統 API\n\n## 功能模組\n- 股票分析：觸發 AI 智能分析\n- 歷史記錄：查詢歷史分析報告\n- 股票資料：取得行情資料\n\n## 認證方式\n目前版本暫無認證要求",
+    "description": "美股自選股智能分析系統 API\n\n## 功能模組\n- 股票分析：觸發 AI 智能分析\n- 歷史記錄：查詢歷史分析報告\n- 股票資料：取得行情資料\n\n## 認證方式\n目前版本暫無認證要求",
     "version": "1.0.0",
     "contact": {
       "name": "Daily Stock Analysis Team"

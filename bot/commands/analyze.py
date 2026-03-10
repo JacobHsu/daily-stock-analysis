@@ -52,16 +52,15 @@ class AnalyzeCommand(BotCommand):
         
         code = args[0].upper()
 
-        # 验证股票代码格式
-        # A股：6位数字
-        # 港股：HK+5位数字
-        # 美股：1-5个大写字母+.+2个后缀字母
+        # 驗證股票代碼格式
+        # 港股：HK+5位數字
+        # 美股：1-5個大寫字母+.+2個後綴字母
         is_a_stock = re.match(r'^\d{6}$', code)
         is_hk_stock = re.match(r'^HK\d{5}$', code)
         is_us_stock = re.match(r'^[A-Z]{1,5}(\.[A-Z]{1,2})?$', code)
 
         if not (is_a_stock or is_hk_stock or is_us_stock):
-            return f"无效的股票代码: {code}（A股6位数字 / 港股HK+5位数字 / 美股1-5个字母）"
+            return f"無效的股票代碼: {code}（港股HK+5位數字 / 美股1-5個字母）"
         
         return None
     

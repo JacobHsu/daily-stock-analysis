@@ -14,7 +14,7 @@ Discord 機器人支援兩種訊息發送方式：
 前往 https://discord.com/developers/applications 並使用你的 Discord 帳號登入
 
 ### 2. 建立應用
-點擊「New Application」按鈕，輸入應用名稱（例如：A股智能分析機器人），然後點擊「Create」
+點擊「New Application」按鈕，輸入應用名稱（例如：股票智能分析機器人），然後點擊「Create」
 
 ### 3. 配置機器人
 在左側導覽列中點擊「Bot」，然後點擊「Add Bot」按鈕，確認新增
@@ -54,7 +54,7 @@ Discord 機器人支援兩種訊息發送方式：
 DISCORD_BOT_TOKEN=your-discord-bot-token
 DISCORD_MAIN_CHANNEL_ID=your-channel-id
 DISCORD_WEBHOOK_URL=your-webhook-url （可選）
-DISCORD_BOT_STATUS=A股智能分析 | /help
+DISCORD_BOT_STATUS=股票智能分析 | /help
 ```
 
 ## Webhook 模式配置（可選）

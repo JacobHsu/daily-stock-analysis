@@ -60,15 +60,15 @@ def setup_env(override: bool = False):
 @dataclass
 class Config:
     """
-    系统配置类 - 单例模式
-    
-    设计说明：
-    - 使用 dataclass 简化配置属性定义
-    - 所有配置项从环境变量读取，支持默认值
-    - 类方法 get_instance() 实现单例访问
+    系統配置類 - 單例模式
+
+    設計說明：
+    - 使用 dataclass 簡化配置屬性定義
+    - 所有配置項從環境變數讀取，支援預設值
+    - 類方法 get_instance() 實現單例訪問
     """
     
-    # === 自选股配置 ===
+    # === 自選股配置 ===
     stock_list: List[str] = field(default_factory=list)
 
     # === AI 分析配置 ===
@@ -93,26 +93,26 @@ class Config:
     # Legacy single-key fields (kept for backward compatibility; gemini_api_keys[0] when set)
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-3-flash-preview"  # 主模型
-    gemini_model_fallback: str = "gemini-2.5-flash"  # 备选模型
-    gemini_temperature: float = 0.7  # 温度参数（0.0-2.0，控制输出随机性，默认0.7）
+    gemini_model_fallback: str = "gemini-2.5-flash"  # 備選模型
+    gemini_temperature: float = 0.7  # 溫度參數（0.0-2.0，控制輸出隨機性，預設0.7）
 
-    # Gemini API 请求配置（防止 429 限流）
-    gemini_request_delay: float = 2.0  # 请求间隔（秒）
-    gemini_max_retries: int = 5  # 最大重试次数
-    gemini_retry_delay: float = 5.0  # 重试基础延时（秒）
+    # Gemini API 請求配置（防止 429 限流）
+    gemini_request_delay: float = 2.0  # 請求間隔（秒）
+    gemini_max_retries: int = 5  # 最大重試次數
+    gemini_retry_delay: float = 5.0  # 重試基礎延遲（秒）
 
-    # Anthropic Claude API（备选，当 Gemini 不可用时使用）
+    # Anthropic Claude API（備選，當 Gemini 不可用時使用）
     anthropic_api_key: Optional[str] = None
     anthropic_model: str = "claude-3-5-sonnet-20241022"  # Claude model name
     anthropic_temperature: float = 0.7  # Anthropic temperature (0.0-1.0, default 0.7)
     anthropic_max_tokens: int = 8192  # Max tokens for Anthropic responses
 
-    # OpenAI 兼容 API（备选，当 Gemini/Anthropic 不可用时使用）
+    # OpenAI 相容 API（備選，當 Gemini/Anthropic 不可用時使用）
     openai_api_key: Optional[str] = None
     openai_base_url: Optional[str] = None  # 如: https://api.openai.com/v1
-    openai_model: str = "gpt-4o-mini"  # OpenAI 兼容模型名称
+    openai_model: str = "gpt-4o-mini"  # OpenAI 相容模型名稱
     openai_vision_model: Optional[str] = None  # Deprecated: use VISION_MODEL instead
-    openai_temperature: float = 0.7  # OpenAI 温度参数（0.0-2.0，默认0.7）
+    openai_temperature: float = 0.7  # OpenAI 溫度參數（0.0-2.0，預設0.7）
 
     # === Vision 配置 ===
     # VISION_MODEL: litellm model string used for image understanding calls.
@@ -121,15 +121,15 @@ class Config:
     # VISION_PROVIDER_PRIORITY: comma-separated provider order for Vision fallback.
     vision_provider_priority: str = "gemini,anthropic,openai"
 
-    # === 搜索引擎配置（支持多 Key 负载均衡）===
+    # === 搜尋引擎配置（支援多 Key 負載均衡）===
     bocha_api_keys: List[str] = field(default_factory=list)  # Bocha API Keys
     tavily_api_keys: List[str] = field(default_factory=list)  # Tavily API Keys
     brave_api_keys: List[str] = field(default_factory=list)  # Brave Search API Keys
     serpapi_keys: List[str] = field(default_factory=list)  # SerpAPI Keys
 
-    # === 新闻与分析筛选配置 ===
-    news_max_age_days: int = 3   # 新闻最大时效（天）
-    bias_threshold: float = 5.0  # 乖离率阈值（%），超过此值提示不追高
+    # === 新聞與分析篩選配置 ===
+    news_max_age_days: int = 3   # 新聞最大時效（天）
+    bias_threshold: float = 5.0  # 乖離率閾值（%），超過此值提示不追高
 
     # === Agent 模式配置 ===
     agent_mode: bool = False
@@ -137,169 +137,169 @@ class Config:
     agent_skills: List[str] = field(default_factory=list)
     agent_strategy_dir: Optional[str] = None
 
-    # === 通知配置（可同时配置多个，全部推送）===
-    
-    # Telegram 配置（需要同时配置 Bot Token 和 Chat ID）
-    telegram_bot_token: Optional[str] = None  # Bot Token（@BotFather 获取）
+    # === 通知配置（可同時配置多個，全部推送）===
+
+    # Telegram 配置（需要同時配置 Bot Token 和 Chat ID）
+    telegram_bot_token: Optional[str] = None  # Bot Token（@BotFather 取得）
     telegram_chat_id: Optional[str] = None  # Chat ID
     telegram_message_thread_id: Optional[str] = None  # Topic ID (Message Thread ID) for groups
     
-    # 邮件配置（只需邮箱和授权码，SMTP 自动识别）
-    email_sender: Optional[str] = None  # 发件人邮箱
-    email_sender_name: str = "daily_stock_analysis股票分析助手"  # 发件人显示名称
-    email_password: Optional[str] = None  # 邮箱密码/授权码
-    email_receivers: List[str] = field(default_factory=list)  # 收件人列表（留空则发给自己）
+    # 郵件配置（只需郵箱和授權碼，SMTP 自動識別）
+    email_sender: Optional[str] = None  # 寄件人郵箱
+    email_sender_name: str = "daily_stock_analysis股票分析助手"  # 寄件人顯示名稱
+    email_password: Optional[str] = None  # 郵箱密碼/授權碼
+    email_receivers: List[str] = field(default_factory=list)  # 收件人列表（留空則發給自己）
 
     # Stock-to-email group routing (Issue #268): STOCK_GROUP_N + EMAIL_GROUP_N
     # When configured, each group's report is sent to that group's emails only.
     stock_email_groups: List[Tuple[List[str], List[str]]] = field(default_factory=list)
 
-    # Pushover 配置（手机/桌面推送通知）
-    pushover_user_key: Optional[str] = None  # 用户 Key（https://pushover.net 获取）
-    pushover_api_token: Optional[str] = None  # 应用 API Token
+    # Pushover 配置（手機/桌面推送通知）
+    pushover_user_key: Optional[str] = None  # 用戶 Key（https://pushover.net 取得）
+    pushover_api_token: Optional[str] = None  # 應用 API Token
     
-    # 自定义 Webhook（支持多个，逗号分隔）
-    # 适用于：钉钉、Discord、Slack、自建服务等任意支持 POST JSON 的 Webhook
+    # 自定義 Webhook（支援多個，逗號分隔）
+    # 適用於：釘釘、Discord、Slack、自建服務等任意支援 POST JSON 的 Webhook
     custom_webhook_urls: List[str] = field(default_factory=list)
-    custom_webhook_bearer_token: Optional[str] = None  # Bearer Token（用于需要认证的 Webhook）
-    webhook_verify_ssl: bool = True  # Webhook HTTPS 证书校验，false 可支持自签名（有 MITM 风险）
+    custom_webhook_bearer_token: Optional[str] = None  # Bearer Token（用於需要認證的 Webhook）
+    webhook_verify_ssl: bool = True  # Webhook HTTPS 憑證校驗，false 可支援自簽名（有 MITM 風險）
 
     # Discord 通知配置
     discord_bot_token: Optional[str] = None  # Discord Bot Token
-    discord_main_channel_id: Optional[str] = None  # Discord 主频道 ID
+    discord_main_channel_id: Optional[str] = None  # Discord 主頻道 ID
     discord_webhook_url: Optional[str] = None  # Discord Webhook URL
 
     # AstrBot 通知配置
     astrbot_token: Optional[str] = None
     astrbot_url: Optional[str] = None
 
-    # 单股推送模式：每分析完一只股票立即推送，而不是汇总后推送
+    # 單股推送模式：每分析完一只股票立即推送，而不是彙總後推送
     single_stock_notify: bool = False
 
-    # 报告类型：simple(精简) 或 full(完整)
+    # 報告類型：simple(精簡) 或 full(完整)
     report_type: str = "simple"
 
-    # 仅分析结果摘要：true 时只推送汇总，不含个股详情（Issue #262）
+    # 僅分析結果摘要：true 時只推送彙總，不含個股詳情（Issue #262）
     report_summary_only: bool = False
 
     # PushPlus 推送配置
     pushplus_token: Optional[str] = None  # PushPlus Token
-    pushplus_topic: Optional[str] = None  # PushPlus 群组编码（一对多推送）
+    pushplus_topic: Optional[str] = None  # PushPlus 群組編碼（一對多推送）
 
-    # 分析间隔时间（秒）- 用于避免API限流
-    analysis_delay: float = 0.0  # 个股分析与大盘分析之间的延迟
+    # 分析間隔時間（秒）- 用於避免API限流
+    analysis_delay: float = 0.0  # 個股分析與大盤分析之間的延遲
 
     # Merge stock + market report into one notification (Issue #190)
     merge_email_notification: bool = False
 
-    # 消息长度限制（字节）- 超长自动分批发送
-    discord_max_words: int = 2000  # Discord 限制 2000 字，默认 2000 字
+    # 訊息長度限制（位元組）- 超長自動分批發送
+    discord_max_words: int = 2000  # Discord 限制 2000 字，預設 2000 字
 
-    # Markdown 转图片（Issue #289）：对不支持 Markdown 的渠道以图片发送
-    markdown_to_image_channels: List[str] = field(default_factory=list)  # 逗号分隔：telegram,custom,email
-    markdown_to_image_max_chars: int = 15000  # 超过此长度不转换，避免超大图片
+    # Markdown 轉圖片（Issue #289）：對不支援 Markdown 的渠道以圖片發送
+    markdown_to_image_channels: List[str] = field(default_factory=list)  # 逗號分隔：telegram,custom,email
+    markdown_to_image_max_chars: int = 15000  # 超過此長度不轉換，避免超大圖片
     md2img_engine: str = "wkhtmltoimage"  # wkhtmltoimage | markdown-to-file (Issue #455, better emoji support)
 
-    # 实时行情预取（Issue #455）：设为 false 可禁用，避免 efinance/akshare_em 全市场拉取
+    # 即時行情預取（Issue #455）：設為 false 可停用，避免 efinance/akshare_em 全市場拉取
     prefetch_realtime_quotes: bool = True
 
-    # === 数据库配置 ===
+    # === 資料庫配置 ===
     database_path: str = "./data/stock_analysis.db"
 
-    # 是否保存分析上下文快照（用于历史回溯）
+    # 是否保存分析上下文快照（用於歷史回溯）
     save_context_snapshot: bool = True
 
-    # === 回测配置 ===
+    # === 回測配置 ===
     backtest_enabled: bool = True
     backtest_eval_window_days: int = 10
     backtest_min_age_days: int = 14
     backtest_engine_version: str = "v1"
     backtest_neutral_band_pct: float = 2.0
     
-    # === 日志配置 ===
-    log_dir: str = "./logs"  # 日志文件目录
-    log_level: str = "INFO"  # 日志级别
-    
-    # === 系统配置 ===
-    max_workers: int = 3  # 低并发防封禁
+    # === 日誌配置 ===
+    log_dir: str = "./logs"  # 日誌檔案目錄
+    log_level: str = "INFO"  # 日誌級別
+
+    # === 系統配置 ===
+    max_workers: int = 3  # 低並發防封禁
     debug: bool = False
     http_proxy: Optional[str] = None  # HTTP 代理 (例如: http://127.0.0.1:10809)
-    https_proxy: Optional[str] = None # HTTPS 代理
-    
-    # === 定时任务配置 ===
-    schedule_enabled: bool = False            # 是否启用定时任务
-    schedule_time: str = "18:00"              # 每日推送时间（HH:MM 格式）
-    schedule_run_immediately: bool = True     # 启动时是否立即执行一次
-    run_immediately: bool = True              # 启动时是否立即执行一次（非定时模式）
-    market_review_enabled: bool = True        # 是否启用大盘复盘
-    # 交易日检查：默认启用，非交易日跳过执行；设为 false 或 --force-run 可强制执行（Issue #373）
+    https_proxy: Optional[str] = None  # HTTPS 代理
+
+    # === 定時任務配置 ===
+    schedule_enabled: bool = False            # 是否啟用定時任務
+    schedule_time: str = "18:00"              # 每日推送時間（HH:MM 格式）
+    schedule_run_immediately: bool = True     # 啟動時是否立即執行一次
+    run_immediately: bool = True              # 啟動時是否立即執行一次（非定時模式）
+    market_review_enabled: bool = True        # 是否啟用大盤復盤
+    # 交易日檢查：預設啟用，非交易日跳過執行；設為 false 或 --force-run 可強制執行（Issue #373）
     trading_day_check_enabled: bool = True
 
-    # === 实时行情增强数据配置 ===
-    # 实时行情开关（关闭后使用历史收盘价进行分析）
+    # === 即時行情增強資料配置 ===
+    # 即時行情開關（關閉後使用歷史收盤價進行分析）
     enable_realtime_quote: bool = True
-    # 盘中实时技术面：启用时用实时价计算 MA/多头排列（Issue #234）；关闭则用昨日收盘
+    # 盤中即時技術面：啟用時用即時價計算 MA/多頭排列（Issue #234）；關閉則用昨日收盤
     enable_realtime_technical_indicators: bool = True
-    # 筹码分布开关（该接口不稳定，云端部署建议关闭）
+    # 籌碼分佈開關（該介面不穩定，雲端部署建議關閉）
     enable_chip_distribution: bool = True
-    # 實時行情資料來源優先級（逗號分隔，US-only: yfinance）
+    # 即時行情資料來源優先級（逗號分隔，US-only: yfinance）
     realtime_source_priority: str = "yfinance"
-    # 实时行情缓存时间（秒）
+    # 即時行情快取時間（秒）
     realtime_cache_ttl: int = 600
-    # 熔断器冷却时间（秒）
+    # 熔斷器冷卻時間（秒）
     circuit_breaker_cooldown: int = 300
 
-    # Discord 机器人状态
+    # Discord 機器人狀態
     discord_bot_status: str = "Stock Analysis | /help"
 
-    # === 流控配置（防封禁关键参数）===
-    # Akshare 请求间隔范围（秒）
+    # === 流控配置（防封禁關鍵參數）===
+    # Akshare 請求間隔範圍（秒）
     akshare_sleep_min: float = 2.0
     akshare_sleep_max: float = 5.0
 
-    # 重试配置
+    # 重試配置
     max_retries: int = 3
     retry_base_delay: float = 1.0
     retry_max_delay: float = 30.0
-    
+
     # === WebUI 配置 ===
     webui_enabled: bool = False
     webui_host: str = "127.0.0.1"
     webui_port: int = 8000
-    
-    # === 机器人配置 ===
-    bot_enabled: bool = True              # 是否启用机器人功能
-    bot_command_prefix: str = "/"         # 命令前缀
-    bot_rate_limit_requests: int = 10     # 频率限制：窗口内最大请求数
-    bot_rate_limit_window: int = 60       # 频率限制：窗口时间（秒）
-    bot_admin_users: List[str] = field(default_factory=list)  # 管理员用户 ID 列表
-    
-    # 企业微信机器人（回调模式）
-    wecom_corpid: Optional[str] = None              # 企业 ID
-    wecom_token: Optional[str] = None               # 回调 Token
-    wecom_encoding_aes_key: Optional[str] = None    # 消息加解密密钥
-    wecom_agent_id: Optional[str] = None            # 应用 AgentId
-    
-    # Telegram 机器人 - 已有 telegram_bot_token, telegram_chat_id
-    telegram_webhook_secret: Optional[str] = None   # Webhook 密钥
 
-    # === 配置校验模式 ===
+    # === 機器人配置 ===
+    bot_enabled: bool = True              # 是否啟用機器人功能
+    bot_command_prefix: str = "/"         # 命令前綴
+    bot_rate_limit_requests: int = 10     # 頻率限制：視窗內最大請求數
+    bot_rate_limit_window: int = 60       # 頻率限制：視窗時間（秒）
+    bot_admin_users: List[str] = field(default_factory=list)  # 管理員用戶 ID 列表
+
+    # 企業微信機器人（回調模式）
+    wecom_corpid: Optional[str] = None              # 企業 ID
+    wecom_token: Optional[str] = None               # 回調 Token
+    wecom_encoding_aes_key: Optional[str] = None    # 訊息加解密金鑰
+    wecom_agent_id: Optional[str] = None            # 應用 AgentId
+
+    # Telegram 機器人 - 已有 telegram_bot_token, telegram_chat_id
+    telegram_webhook_secret: Optional[str] = None   # Webhook 金鑰
+
+    # === 配置校驗模式 ===
     # CONFIG_VALIDATE_MODE=warn (default): log all issues but always continue startup
     # CONFIG_VALIDATE_MODE=strict: exit(1) when any "error" severity issue is found
     config_validate_mode: str = "warn"
 
-    # 单例实例存储
+    # 單例實例存儲
     _instance: Optional['Config'] = None
-    
+
     @classmethod
     def get_instance(cls) -> 'Config':
         """
-        获取配置单例实例
-        
-        单例模式确保：
-        1. 全局只有一个配置实例
-        2. 配置只从环境变量加载一次
-        3. 所有模块共享相同配置
+        取得配置單例實例
+
+        單例模式確保：
+        1. 全域只有一個配置實例
+        2. 配置只從環境變數載入一次
+        3. 所有模組共享相同配置
         """
         if cls._instance is None:
             cls._instance = cls._load_from_env()
@@ -308,18 +308,18 @@ class Config:
     @classmethod
     def _load_from_env(cls) -> 'Config':
         """
-        从 .env 文件加载配置
-        
-        加载优先级：
-        1. 系统环境变量
-        2. .env 文件
-        3. 代码中的默认值
+        從 .env 檔案載入配置
+
+        載入優先級：
+        1. 系統環境變數
+        2. .env 檔案
+        3. 程式碼中的預設值
         """
-        # 确保环境变量已加载
+        # 確保環境變數已載入
         setup_env()
 
-        # === 智能代理配置 (关键修复) ===
-        # 如果配置了代理，自动设置 NO_PROXY 以排除国内数据源，避免行情获取失败
+        # === 智能代理配置 (關鍵修復) ===
+        # 如果配置了代理，自動設定 NO_PROXY 以排除國內資料來源，避免行情取得失敗
         http_proxy = os.getenv('HTTP_PROXY') or os.getenv('http_proxy')
         if http_proxy:
             # Local/loopback addresses that should bypass proxy
@@ -328,19 +328,19 @@ class Config:
                 '127.0.0.1'
             ]
 
-            # 获取现有的 no_proxy
+            # 取得現有的 no_proxy
             current_no_proxy = os.getenv('NO_PROXY') or os.getenv('no_proxy') or ''
             existing_domains = current_no_proxy.split(',') if current_no_proxy else []
 
-            # 合并去重
+            # 合併去重
             final_domains = list(set(existing_domains + domestic_domains))
             final_no_proxy = ','.join(filter(None, final_domains))
 
-            # 设置环境变量 (requests/urllib3/aiohttp 都会遵守此设置)
+            # 設定環境變數 (requests/urllib3/aiohttp 都會遵守此設定)
             os.environ['NO_PROXY'] = final_no_proxy
             os.environ['no_proxy'] = final_no_proxy
 
-            # 确保 HTTP_PROXY 也被正确设置（以防仅在 .env 中定义但未导出）
+            # 確保 HTTP_PROXY 也被正確設定（以防僅在 .env 中定義但未導出）
             os.environ['HTTP_PROXY'] = http_proxy
             os.environ['http_proxy'] = http_proxy
 
@@ -351,7 +351,7 @@ class Config:
                 os.environ['https_proxy'] = https_proxy
 
         
-        # 解析自选股列表（逗号分隔，统一为大写 Issue #355）
+        # 解析自選股列表（逗號分隔，統一為大寫 Issue #355）
         stock_list_str = os.getenv('STOCK_LIST', '')
         stock_list = [
             (c or "").strip().upper()
@@ -359,7 +359,7 @@ class Config:
             if (c or "").strip()
         ]
         
-        # 如果没有配置，使用默认的示例股票
+        # 如果沒有配置，使用預設的範例股票
         if not stock_list:
             stock_list = ['AAPL', 'TSLA', 'NVDA']
         
@@ -472,7 +472,7 @@ class Config:
                 if m not in _seen and not _seen.add(m)  # type: ignore[func-returns-value]
             ]
 
-        # 解析搜索引擎 API Keys（支持多个 key，逗号分隔）
+        # 解析搜尋引擎 API Keys（支援多個 key，逗號分隔）
         bocha_keys_str = os.getenv('BOCHA_API_KEYS', '')
         bocha_api_keys = [k.strip() for k in bocha_keys_str.split(',') if k.strip()]
         
@@ -594,22 +594,22 @@ class Config:
             webui_enabled=os.getenv('WEBUI_ENABLED', 'false').lower() == 'true',
             webui_host=os.getenv('WEBUI_HOST', '127.0.0.1'),
             webui_port=int(os.getenv('WEBUI_PORT', '8000')),
-            # 机器人配置
+            # 機器人配置
             bot_enabled=os.getenv('BOT_ENABLED', 'true').lower() == 'true',
             bot_command_prefix=os.getenv('BOT_COMMAND_PREFIX', '/'),
             bot_rate_limit_requests=int(os.getenv('BOT_RATE_LIMIT_REQUESTS', '10')),
             bot_rate_limit_window=int(os.getenv('BOT_RATE_LIMIT_WINDOW', '60')),
             bot_admin_users=[u.strip() for u in os.getenv('BOT_ADMIN_USERS', '').split(',') if u.strip()],
-            # 企业微信机器人
+            # 企業微信機器人
             wecom_corpid=os.getenv('WECOM_CORPID'),
             wecom_token=os.getenv('WECOM_TOKEN'),
             wecom_encoding_aes_key=os.getenv('WECOM_ENCODING_AES_KEY'),
             wecom_agent_id=os.getenv('WECOM_AGENT_ID'),
             # Telegram
             telegram_webhook_secret=os.getenv('TELEGRAM_WEBHOOK_SECRET'),
-            # Discord 机器人扩展配置
+            # Discord 機器人擴展配置
             discord_bot_status=os.getenv('DISCORD_BOT_STATUS', 'Stock Analysis | /help'),
-            # 实时行情增强数据配置
+            # 即時行情增強資料配置
             enable_realtime_quote=os.getenv('ENABLE_REALTIME_QUOTE', 'true').lower() == 'true',
             enable_realtime_technical_indicators=os.getenv(
                 'ENABLE_REALTIME_TECHNICAL_INDICATORS', 'true'
@@ -869,28 +869,28 @@ class Config:
 
     @classmethod
     def reset_instance(cls) -> None:
-        """重置单例（主要用于测试）"""
+        """重置單例（主要用於測試）"""
         cls._instance = None
 
     def refresh_stock_list(self) -> None:
         """
-        热读取 STOCK_LIST 环境变量并更新配置中的自选股列表
-        
-        支持两种配置方式：
-        1. .env 文件（本地开发、定时任务模式） - 修改后下次执行自动生效
-        2. 系统环境变量（GitHub Actions、Docker） - 启动时固定，运行中不变
+        熱讀取 STOCK_LIST 環境變數並更新配置中的自選股列表
+
+        支援兩種配置方式：
+        1. .env 檔案（本地開發、定時任務模式） - 修改後下次執行自動生效
+        2. 系統環境變數（GitHub Actions、Docker） - 啟動時固定，運行中不變
         """
-        # 优先从 .env 文件读取最新配置，这样即使在容器环境中修改了 .env 文件，
-        # 也能获取到最新的股票列表配置
+        # 優先從 .env 檔案讀取最新配置，這樣即使在容器環境中修改了 .env 檔案，
+        # 也能取得最新的股票列表配置
         env_file = os.getenv("ENV_FILE")
         env_path = Path(env_file) if env_file else (Path(__file__).parent.parent / '.env')
         stock_list_str = ''
         if env_path.exists():
-            # 直接从 .env 文件读取最新的配置
+            # 直接從 .env 檔案讀取最新的配置
             env_values = dotenv_values(env_path)
             stock_list_str = (env_values.get('STOCK_LIST') or '').strip()
 
-        # 如果 .env 文件不存在或未配置，才尝试从系统环境变量读取
+        # 如果 .env 檔案不存在或未配置，才嘗試從系統環境變數讀取
         if not stock_list_str:
             stock_list_str = os.getenv('STOCK_LIST', '')
 
@@ -924,7 +924,7 @@ class Config:
         if not self.stock_list:
             issues.append(ConfigIssue(
                 severity="error",
-                message="未配置自选股列表 (STOCK_LIST)",
+                message="未配置自選股列表 (STOCK_LIST)",
                 field="STOCK_LIST",
             ))
 
@@ -937,7 +937,7 @@ class Config:
                 severity="error",
                 message=(
                     "未配置任何 LLM（LITELLM_CONFIG / LLM_CHANNELS / *_API_KEY），"
-                    "AI 分析功能将不可用"
+                    "AI 分析功能將不可用"
                 ),
                 field="LITELLM_CONFIG",
             ))
@@ -945,8 +945,8 @@ class Config:
             issues.append(ConfigIssue(
                 severity="info",
                 message=(
-                    "LITELLM_MODEL 未配置，将自动从可用 API Key 推断模型。"
-                    "建议尽早配置 LITELLM_MODEL（格式如 gemini/gemini-2.5-flash）"
+                    "LITELLM_MODEL 未配置，將自動從可用 API Key 推斷模型。"
+                    "建議盡早配置 LITELLM_MODEL（格式如 gemini/gemini-2.5-flash）"
                 ),
                 field="LITELLM_MODEL",
             ))
@@ -960,7 +960,7 @@ class Config:
         ):
             issues.append(ConfigIssue(
                 severity="info",
-                message="未配置搜索引擎 API Key (Bocha/Tavily/Brave/SerpAPI)，新闻搜索功能将不可用",
+                message="未配置搜尋引擎 API Key (Bocha/Tavily/Brave/SerpAPI)，新聞搜尋功能將不可用",
                 field="BOCHA_API_KEY",
             ))
 
@@ -977,7 +977,7 @@ class Config:
         if not has_notification:
             issues.append(ConfigIssue(
                 severity="warning",
-                message="未配置通知渠道，将不发送推送通知",
+                message="未配置通知渠道，將不發送推送通知",
                 field="TELEGRAM_BOT_TOKEN",
             ))
 
@@ -986,8 +986,8 @@ class Config:
             issues.append(ConfigIssue(
                 severity="info",
                 message=(
-                    "OPENAI_VISION_MODEL 已废弃，请改用 VISION_MODEL。"
-                    "当前值已自动迁移，建议更新配置文件以消除此提示。"
+                    "OPENAI_VISION_MODEL 已棄用，請改用 VISION_MODEL。"
+                    "當前值已自動遷移，建議更新配置檔案以消除此提示。"
                 ),
                 field="OPENAI_VISION_MODEL",
             ))
@@ -1033,8 +1033,8 @@ class Config:
                     severity="warning",
                     message=(
                         "VISION_MODEL 已配置，但未找到可用的 Vision API Key "
-                        f"（已检查：{', '.join(_checked)}）。"
-                        "图片股票代码提取功能将不可用，请配置对应的 API Key。"
+                        f"（已檢查：{', '.join(_checked)}）。"
+                        "圖片股票程式碼提取功能將不可用，請配置對應的 API Key。"
                     ),
                     field="VISION_MODEL",
                 ))
@@ -1054,18 +1054,18 @@ class Config:
     
     def get_db_url(self) -> str:
         """
-        获取 SQLAlchemy 数据库连接 URL
-        
-        自动创建数据库目录（如果不存在）
+        取得 SQLAlchemy 資料庫連線 URL
+
+        自動建立資料庫目錄（如果不存在）
         """
         db_path = Path(self.database_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{db_path.absolute()}"
 
 
-# === 便捷的配置访问函数 ===
+# === 便捷的配置訪問函數 ===
 def get_config() -> Config:
-    """获取全局配置实例的快捷方式"""
+    """取得全域配置實例的快捷方式"""
     return Config.get_instance()
 
 
@@ -1111,17 +1111,17 @@ def extra_litellm_params(model: str, config: Config) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    # 测试配置加载
+    # 測試配置載入
     config = get_config()
-    print("=== 配置加载测试 ===")
-    print(f"自选股列表: {config.stock_list}")
-    print(f"数据库路径: {config.database_path}")
-    print(f"最大并发数: {config.max_workers}")
-    print(f"调试模式: {config.debug}")
-    
-    # 验证配置
+    print("=== 配置載入測試 ===")
+    print(f"自選股列表: {config.stock_list}")
+    print(f"資料庫路徑: {config.database_path}")
+    print(f"最大並發數: {config.max_workers}")
+    print(f"除錯模式: {config.debug}")
+
+    # 驗證配置
     warnings = config.validate()
     if warnings:
-        print("\n配置验证结果:")
+        print("\n配置驗證結果:")
         for w in warnings:
             print(f"  - {w}")

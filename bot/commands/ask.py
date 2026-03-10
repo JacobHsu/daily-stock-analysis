@@ -79,12 +79,10 @@ class AskCommand(BotCommand):
             return "请输入股票代码。用法: /ask <股票代码> [策略名称]\n示例: /ask AAPL 用纏論分析"
 
         code = args[0].upper()
-        is_a_stock = re.match(r"^\d{6}$", code)
-        is_hk_stock = re.match(r"^HK\d{5}$", code)
         is_us_stock = re.match(r"^[A-Z]{1,5}(\.[A-Z]{1,2})?$", code)
 
-        if not (is_a_stock or is_hk_stock or is_us_stock):
-            return f"无效的股票代码: {code}（A股6位数字 / 港股HK+5位数字 / 美股1-5个字母）"
+        if not (is_us_stock):
+            return f"無效的股票代碼: {code}（美股1-5個字母）"
 
         return None
 

@@ -1097,9 +1097,9 @@ class NotificationService(
         sniper = battle.get('sniper_points', {}) if battle else {}
         if sniper:
             lines.extend([
-                "### 🎯 操作点位",
+                "### 🎯 操作點位",
                 "",
-                "| 买点 | 止损 | 目标 |",
+                "| 買點 | 止損 | 目標 |",
                 "|------|------|------|",
             ])
             ideal_buy = sniper.get('ideal_buy', '-')
@@ -1108,14 +1108,14 @@ class NotificationService(
             lines.append(f"| {ideal_buy} | {stop_loss} | {take_profit} |")
             lines.append("")
         
-        # 持仓建议
+        # 持倉建議
         pos_advice = core.get('position_advice', {}) if core else {}
         if pos_advice:
             lines.extend([
-                "### 💼 持仓建议",
+                "### 💼 持倉建議",
                 "",
-                f"- 🆕 **空仓者**: {pos_advice.get('no_position', result.operation_advice)}",
-                f"- 💼 **持仓者**: {pos_advice.get('has_position', '继续持有')}",
+                f"- 🆕 **空倉者**: {pos_advice.get('no_position', result.operation_advice)}",
+                f"- 💼 **持倉者**: {pos_advice.get('has_position', '繼續持有')}",
                 "",
             ])
         
@@ -1130,7 +1130,7 @@ class NotificationService(
     # Display name mapping for realtime data sources
     _SOURCE_DISPLAY_NAMES = {
         "yfinance": "Yahoo Finance",
-        "fallback": "降级兜底",
+        "fallback": "降級備援",
     }
 
     def _append_market_snapshot(self, lines: List[str], result: AnalysisResult) -> None:
@@ -1139,9 +1139,9 @@ class NotificationService(
             return
 
         lines.extend([
-            "### 📈 当日行情",
+            "### 📈 當日行情",
             "",
-            "| 收盘 | 昨收 | 开盘 | 最高 | 最低 | 涨跌幅 | 涨跌额 | 振幅 | 成交量 | 成交额 |",
+            "| 收盤 | 昨收 | 開盤 | 最高 | 最低 | 漲跌幅 | 漲跌額 | 振幅 | 成交量 | 成交額 |",
             "|------|------|------|------|------|-------|-------|------|--------|--------|",
             f"| {snapshot.get('close', 'N/A')} | {snapshot.get('prev_close', 'N/A')} | "
             f"{snapshot.get('open', 'N/A')} | {snapshot.get('high', 'N/A')} | "
@@ -1155,7 +1155,7 @@ class NotificationService(
             display_source = self._SOURCE_DISPLAY_NAMES.get(raw_source, raw_source)
             lines.extend([
                 "",
-                "| 当前价 | 量比 | 换手率 | 行情来源 |",
+                "| 當前價 | 量比 | 換手率 | 行情來源 |",
                 "|-------|------|--------|----------|",
                 f"| {snapshot.get('price', 'N/A')} | {snapshot.get('volume_ratio', 'N/A')} | "
                 f"{snapshot.get('turnover_rate', 'N/A')} | {display_source} |",
@@ -1183,9 +1183,9 @@ class NotificationService(
         email_send_to_all: bool = False
     ) -> bool:
         """
-        统一发送接口 - 向所有已配置的渠道发送
+        統一發送介面 - 向所有已配置的渠道發送
 
-        遍历所有已配置的渠道，逐一发送消息
+        遍歷所有已配置的渠道，逐一發送訊息
 
         Fallback rules (Markdown-to-image, Issue #289):
         - When image_bytes is None (conversion failed / imgkit not installed /
@@ -1194,20 +1194,20 @@ class NotificationService(
         - When WeChat image exceeds ~2MB: that channel falls back to Markdown text.
 
         Args:
-            content: 消息内容（Markdown 格式）
-            email_stock_codes: 股票代码列表（可选，用于邮件渠道路由到对应分组邮箱，Issue #268）
-            email_send_to_all: 邮件是否发往所有配置邮箱（用于大盘复盘等无股票归属的内容）
+            content: 訊息內容（Markdown 格式）
+            email_stock_codes: 股票代碼列表（可選，用於郵件渠道路由到對應分組郵箱，Issue #268）
+            email_send_to_all: 郵件是否發往所有配置郵箱（用於大盤復盤等無股票歸屬的內容）
 
         Returns:
-            是否至少有一个渠道发送成功
+            是否至少有一個渠道發送成功
         """
         context_success = self.send_to_context(content)
 
         if not self._available_channels:
             if context_success:
-                logger.info("已通过消息上下文渠道完成推送（无其他通知渠道）")
+                logger.info("已通過訊息上下文渠道完成推送（無其他通知渠道）")
                 return True
-            logger.warning("通知服务不可用，跳过推送")
+            logger.warning("通知服務不可用，跳過推送")
             return False
 
         # Markdown to image (Issue #289): convert once if any channel needs it.
@@ -1223,7 +1223,7 @@ class NotificationService(
                 content, max_chars=self._markdown_to_image_max_chars
             )
             if image_bytes:
-                logger.info("Markdown 已转换为图片，将向 %s 发送图片",
+                logger.info("Markdown 已轉換為圖片，將向 %s 發送圖片",
                             [ch.value for ch in channels_needing_image])
             elif channels_needing_image:
                 try:
@@ -1236,12 +1236,12 @@ class NotificationService(
                     else "wkhtmltopdf (apt install wkhtmltopdf / brew install wkhtmltopdf)"
                 )
                 logger.warning(
-                    "Markdown 转图片失败，将回退为文本发送。请检查 MARKDOWN_TO_IMAGE_CHANNELS 配置并安装 %s",
+                    "Markdown 轉圖片失敗，將回退為文字發送。請檢查 MARKDOWN_TO_IMAGE_CHANNELS 配置並安裝 %s",
                     hint,
                 )
 
         channel_names = self.get_channel_names()
-        logger.info(f"正在向 {len(self._available_channels)} 个渠道发送通知：{channel_names}")
+        logger.info(f"正在向 {len(self._available_channels)} 個渠道發送通知：{channel_names}")
 
         success_count = 0
         fail_count = 0
@@ -1283,7 +1283,7 @@ class NotificationService(
                 elif channel == NotificationChannel.ASTRBOT:
                     result = self.send_to_astrbot(content)
                 else:
-                    logger.warning(f"不支持的通知渠道: {channel}")
+                    logger.warning(f"不支援的通知渠道: {channel}")
                     result = False
 
                 if result:
@@ -1292,26 +1292,26 @@ class NotificationService(
                     fail_count += 1
 
             except Exception as e:
-                logger.error(f"{channel_name} 发送失败: {e}")
+                logger.error(f"{channel_name} 發送失敗: {e}")
                 fail_count += 1
 
-        logger.info(f"通知发送完成：成功 {success_count} 个，失败 {fail_count} 个")
+        logger.info(f"通知發送完成：成功 {success_count} 個，失敗 {fail_count} 個")
         return success_count > 0 or context_success
    
     def save_report_to_file(
-        self, 
-        content: str, 
+        self,
+        content: str,
         filename: Optional[str] = None
     ) -> str:
         """
-        保存日报到本地文件
-        
+        儲存日報到本地檔案
+
         Args:
-            content: 日报内容
-            filename: 文件名（可选，默认按日期生成）
-            
+            content: 日報內容
+            filename: 檔案名（可選，預設依日期生成）
+
         Returns:
-            保存的文件路径
+            儲存的檔案路徑
         """
         from pathlib import Path
         
@@ -1319,7 +1319,7 @@ class NotificationService(
             date_str = datetime.now().strftime('%Y%m%d')
             filename = f"report_{date_str}.md"
         
-        # 确保 reports 目录存在（使用项目根目录下的 reports）
+        # 確保 reports 目錄存在（使用專案根目錄下的 reports）
         reports_dir = Path(__file__).parent.parent / 'reports'
         reports_dir.mkdir(parents=True, exist_ok=True)
         
@@ -1328,17 +1328,31 @@ class NotificationService(
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
         
-        logger.info(f"日报已保存到: {filepath}")
+        logger.info(f"日報已儲存到: {filepath}")
+        
+        # 只將個股分析報告（report_日期.md）同步到 docs/README.md 供預覽
+        # 大盤復盤（market_review_）不覆蓋此檔案
+        if filename.startswith('report_'):
+            docs_dir = Path(__file__).parent.parent / 'docs'
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            docs_filepath = docs_dir / 'README.md'
+            try:
+                with open(docs_filepath, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                logger.info(f"最新決策儀表板已同步到: {docs_filepath}")
+            except Exception as e:
+                logger.error(f"同步 docs/README.md 失敗: {e}")
+            
         return str(filepath)
 
 
 class NotificationBuilder:
     """
-    通知消息构建器
-    
-    提供便捷的消息构建方法
+    通知訊息建構器
+
+    提供便捷的訊息建構方法
     """
-    
+
     @staticmethod
     def build_simple_alert(
         title: str,
@@ -1346,12 +1360,12 @@ class NotificationBuilder:
         alert_type: str = "info"
     ) -> str:
         """
-        构建简单的提醒消息
-        
+        建構簡單的提醒訊息
+
         Args:
-            title: 标题
-            content: 内容
-            alert_type: 类型（info, warning, error, success）
+            title: 標題
+            content: 內容
+            alert_type: 類型（info, warning, error, success）
         """
         emoji_map = {
             "info": "ℹ️",
@@ -1366,103 +1380,103 @@ class NotificationBuilder:
     @staticmethod
     def build_stock_summary(results: List[AnalysisResult]) -> str:
         """
-        构建股票摘要（简短版）
-        
-        适用于快速通知
+        建構股票摘要（簡短版）
+
+        適用於快速通知
         """
-        lines = ["📊 **今日自选股摘要**", ""]
-        
+        lines = ["📊 **今日自選股摘要**", ""]
+
         for r in sorted(results, key=lambda x: x.sentiment_score, reverse=True):
             emoji = r.get_emoji()
-            lines.append(f"{emoji} {r.name}({r.code}): {r.operation_advice} | 评分 {r.sentiment_score}")
+            lines.append(f"{emoji} {r.name}({r.code}): {r.operation_advice} | 評分 {r.sentiment_score}")
         
         return "\n".join(lines)
 
 
-# 便捷函数
+# 便捷函式
 def get_notification_service() -> NotificationService:
-    """获取通知服务实例"""
+    """取得通知服務實例"""
     return NotificationService()
 
 
 def send_daily_report(results: List[AnalysisResult]) -> bool:
     """
-    发送每日报告的快捷方式
-    
-    自动识别渠道并推送
+    發送每日報告的快捷方式
+
+    自動識別渠道並推送
     """
     service = get_notification_service()
-    
-    # 生成报告
+
+    # 生成報告
     report = service.generate_daily_report(results)
-    
-    # 保存到本地
+
+    # 儲存到本地
     service.save_report_to_file(report)
-    
-    # 推送到配置的渠道（自动识别）
+
+    # 推送到配置的渠道（自動識別）
     return service.send(report)
 
 
 if __name__ == "__main__":
-    # 测试代码
+    # 測試程式碼
     logging.basicConfig(level=logging.DEBUG)
-    
-    # 模拟分析结果
+
+    # 模擬分析結果
     test_results = [
         AnalysisResult(
             code='AAPL',
             name='蘋果公司',
             sentiment_score=75,
             trend_prediction='看多',
-            analysis_summary='技术面强势，消息面利好',
-            operation_advice='买入',
+            analysis_summary='技術面強勢，消息面利好',
+            operation_advice='買入',
             technical_analysis='放量突破 MA20，MACD 金叉',
-            news_summary='公司发布分红公告，业绩超预期',
+            news_summary='公司發布分紅公告，業績超預期',
         ),
         AnalysisResult(
             code='TSLA',
             name='特斯拉',
             sentiment_score=45,
-            trend_prediction='震荡',
-            analysis_summary='横盘整理，等待方向',
+            trend_prediction='震盪',
+            analysis_summary='橫盤整理，等待方向',
             operation_advice='持有',
-            technical_analysis='均线粘合，成交量萎缩',
-            news_summary='近期无重大消息',
+            technical_analysis='均線黏合，成交量萎縮',
+            news_summary='近期無重大消息',
         ),
         AnalysisResult(
             code='NVDA',
             name='輝達',
             sentiment_score=35,
             trend_prediction='看空',
-            analysis_summary='技术面走弱，注意风险',
-            operation_advice='卖出',
-            technical_analysis='跌破 MA10 支撑，量能不足',
-            news_summary='行业竞争加剧，毛利率承压',
+            analysis_summary='技術面走弱，注意風險',
+            operation_advice='賣出',
+            technical_analysis='跌破 MA10 支撐，量能不足',
+            news_summary='行業競爭加劇，毛利率承壓',
         ),
     ]
-    
+
     service = NotificationService()
-    
-    # 显示检测到的渠道
-    print("=== 通知渠道检测 ===")
-    print(f"当前渠道: {service.get_channel_names()}")
+
+    # 顯示偵測到的渠道
+    print("=== 通知渠道偵測 ===")
+    print(f"當前渠道: {service.get_channel_names()}")
     print(f"渠道列表: {service.get_available_channels()}")
-    print(f"服务可用: {service.is_available()}")
-    
-    # 生成日报
-    print("\n=== 生成日报测试 ===")
+    print(f"服務可用: {service.is_available()}")
+
+    # 生成日報
+    print("\n=== 生成日報測試 ===")
     report = service.generate_daily_report(test_results)
     print(report)
-    
-    # 保存到文件
-    print("\n=== 保存日报 ===")
+
+    # 儲存到檔案
+    print("\n=== 儲存日報 ===")
     filepath = service.save_report_to_file(report)
-    print(f"保存成功: {filepath}")
-    
-    # 推送测试
+    print(f"儲存成功: {filepath}")
+
+    # 推送測試
     if service.is_available():
-        print(f"\n=== 推送测试（{service.get_channel_names()}）===")
+        print(f"\n=== 推送測試（{service.get_channel_names()}）===")
         success = service.send(report)
-        print(f"推送结果: {'成功' if success else '失败'}")
+        print(f"推送結果: {'成功' if success else '失敗'}")
     else:
-        print("\n通知渠道未配置，跳过推送测试")
+        print("\n通知渠道未配置，跳過推送測試")
