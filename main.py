@@ -1,0 +1,630 @@
+# -*- coding: utf-8 -*-
+"""
+===================================
+美股自選股智慧分析系統 - 主排程程式
+===================================
+
+職責：
+1. 協調各模組完成股票分析流程
+2. 實現低併發的執行緒池排程
+3. 全域性異常處理，確保單股失敗不影響整體
+4. 提供命令列入口
+
+使用方式：
+    python main.py              # 正常執行
+    python main.py --debug      # 除錯模式
+    python main.py --dry-run    # 僅獲取資料不分析
+"""
+import os
+from src.config import setup_env
+setup_env()
+
+# 代理配置 - 透過 USE_PROXY 環境變數控制，預設關閉
+# GitHub Actions 環境自動跳過代理配置
+if os.getenv("GITHUB_ACTIONS") != "true" and os.getenv("USE_PROXY", "false").lower() == "true":
+    # 本地開發環境，啟用代理（可在 .env 中配置 PROXY_HOST 和 PROXY_PORT）
+    proxy_host = os.getenv("PROXY_HOST", "127.0.0.1")
+    proxy_port = os.getenv("PROXY_PORT", "10809")
+    proxy_url = f"http://{proxy_host}:{proxy_port}"
+    os.environ["http_proxy"] = proxy_url
+    os.environ["https_proxy"] = proxy_url
+
+import argparse
+import logging
+import sys
+import time
+import uuid
+from datetime import datetime
+from typing import List, Optional, Tuple
+
+from data_provider.base import canonical_stock_code
+from src.core.pipeline import StockAnalysisPipeline
+from src.core.market_review import run_market_review
+from src.webui_frontend import prepare_webui_frontend_assets
+from src.config import get_config, Config
+from src.logging_config import setup_logging
+
+
+logger = logging.getLogger(__name__)
+
+
+def parse_arguments() -> argparse.Namespace:
+    """解析命令列引數"""
+    parser = argparse.ArgumentParser(
+        description='美股自選股智慧分析系統',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+示例:
+  python main.py                    # 正常執行
+  python main.py --debug            # 除錯模式
+  python main.py --dry-run          # 僅獲取資料，不進行 AI 分析
+  python main.py --stocks AAPL,TSLA      # 指定分析特定股票
+  python main.py --no-notify        # 不傳送推送通知
+  python main.py --single-notify    # 啟用單股推送模式（每分析完一隻立即推送）
+  python main.py --schedule         # 啟用定時任務模式
+  python main.py --market-review    # 僅執行大盤覆盤
+        '''
+    )
+
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='啟用除錯模式，輸出詳細日誌'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='僅獲取資料，不進行 AI 分析'
+    )
+
+    parser.add_argument(
+        '--stocks',
+        type=str,
+        help='指定要分析的股票程式碼，逗號分隔（覆蓋配置檔案）'
+    )
+
+    parser.add_argument(
+        '--no-notify',
+        action='store_true',
+        help='不傳送推送通知'
+    )
+
+    parser.add_argument(
+        '--single-notify',
+        action='store_true',
+        help='啟用單股推送模式：每分析完一隻股票立即推送，而不是彙總推送'
+    )
+
+    parser.add_argument(
+        '--workers',
+        type=int,
+        default=None,
+        help='併發執行緒數（預設使用配置值）'
+    )
+
+    parser.add_argument(
+        '--schedule',
+        action='store_true',
+        help='啟用定時任務模式，每日定時執行'
+    )
+
+    parser.add_argument(
+        '--no-run-immediately',
+        action='store_true',
+        help='定時任務啟動時不立即執行一次'
+    )
+
+    parser.add_argument(
+        '--market-review',
+        action='store_true',
+        help='僅執行大盤覆盤分析'
+    )
+
+    parser.add_argument(
+        '--no-market-review',
+        action='store_true',
+        help='跳過大盤覆盤分析'
+    )
+
+    parser.add_argument(
+        '--force-run',
+        action='store_true',
+        help='跳過交易日檢查，強制執行全量分析（Issue #373）'
+    )
+
+    parser.add_argument(
+        '--webui',
+        action='store_true',
+        help='啟動 Web 管理介面'
+    )
+
+    parser.add_argument(
+        '--webui-only',
+        action='store_true',
+        help='僅啟動 Web 服務，不執行自動分析'
+    )
+
+    parser.add_argument(
+        '--serve',
+        action='store_true',
+        help='啟動 FastAPI 後端服務（同時執行分析任務）'
+    )
+
+    parser.add_argument(
+        '--serve-only',
+        action='store_true',
+        help='僅啟動 FastAPI 後端服務，不自動執行分析'
+    )
+
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=8000,
+        help='FastAPI 服務埠（預設 8000）'
+    )
+
+    parser.add_argument(
+        '--host',
+        type=str,
+        default='127.0.0.1',
+        help='FastAPI 服務監聽地址（預設 127.0.0.1）'
+    )
+
+    parser.add_argument(
+        '--no-context-snapshot',
+        action='store_true',
+        help='不儲存分析上下文快照'
+    )
+
+    # === Backtest ===
+    parser.add_argument(
+        '--backtest',
+        action='store_true',
+        help='執行回測（對歷史分析結果進行評估）'
+    )
+
+    parser.add_argument(
+        '--backtest-code',
+        type=str,
+        default=None,
+        help='僅回測指定股票程式碼'
+    )
+
+    parser.add_argument(
+        '--backtest-days',
+        type=int,
+        default=None,
+        help='回測評估視窗（交易日數，預設使用配置）'
+    )
+
+    parser.add_argument(
+        '--backtest-force',
+        action='store_true',
+        help='強制回測（即使已有回測結果也重新計算）'
+    )
+
+    return parser.parse_args()
+
+
+def _compute_trading_day_filter(
+    config: Config,
+    args: argparse.Namespace,
+    stock_codes: List[str],
+) -> Tuple[List[str], Optional[str], bool]:
+    """
+    Compute filtered stock list and effective market review region (Issue #373).
+
+    Returns:
+        (filtered_codes, effective_region, should_skip_all)
+        - effective_region None = use config default (check disabled)
+        - effective_region '' = all relevant markets closed, skip market review
+        - should_skip_all: skip entire run when no stocks and no market review to run
+    """
+    force_run = getattr(args, 'force_run', False)
+    if force_run or not getattr(config, 'trading_day_check_enabled', True):
+        return (stock_codes, None, False)
+
+    from src.core.trading_calendar import (
+        get_market_for_stock,
+        get_open_markets_today,
+        compute_effective_region,
+    )
+
+    open_markets = get_open_markets_today()
+    filtered_codes = []
+    for code in stock_codes:
+        mkt = get_market_for_stock(code)
+        if mkt in open_markets or mkt is None:
+            filtered_codes.append(code)
+
+    if config.market_review_enabled and not getattr(args, 'no_market_review', False):
+        effective_region = compute_effective_region(
+            getattr(config, 'market_review_region', 'us') or 'us', open_markets
+        )
+    else:
+        effective_region = None
+
+    should_skip_all = (not filtered_codes) and (effective_region or '') == ''
+    return (filtered_codes, effective_region, should_skip_all)
+
+
+def run_full_analysis(
+    config: Config,
+    args: argparse.Namespace,
+    stock_codes: Optional[List[str]] = None
+):
+    """
+    執行完整的分析流程（個股 + 大盤覆盤）
+
+    這是定時任務呼叫的主函式
+    """
+    try:
+        # Issue #529: Hot-reload STOCK_LIST from .env on each scheduled run
+        if stock_codes is None:
+            config.refresh_stock_list()
+
+        # Issue #373: Trading day filter (per-stock, per-market)
+        effective_codes = stock_codes if stock_codes is not None else config.stock_list
+        filtered_codes, effective_region, should_skip = _compute_trading_day_filter(
+            config, args, effective_codes
+        )
+        if should_skip:
+            logger.info(
+                "今日所有相關市場均為非交易日，跳過執行。可使用 --force-run 強制執行。"
+            )
+            return
+        if set(filtered_codes) != set(effective_codes):
+            skipped = set(effective_codes) - set(filtered_codes)
+            logger.info("今日休市股票已跳過: %s", skipped)
+        stock_codes = filtered_codes
+
+        # 命令列引數 --single-notify 覆蓋配置（#55）
+        if getattr(args, 'single_notify', False):
+            config.single_stock_notify = True
+
+        # Issue #190: 個股與大盤覆盤合併推送
+        merge_notification = (
+            getattr(config, 'merge_email_notification', False)
+            and config.market_review_enabled
+            and not getattr(args, 'no_market_review', False)
+            and not config.single_stock_notify
+        )
+
+        # 建立排程器
+        save_context_snapshot = None
+        if getattr(args, 'no_context_snapshot', False):
+            save_context_snapshot = False
+        query_id = uuid.uuid4().hex
+        pipeline = StockAnalysisPipeline(
+            config=config,
+            max_workers=args.workers,
+            query_id=query_id,
+            query_source="cli",
+            save_context_snapshot=save_context_snapshot
+        )
+
+        # 1. 執行個股分析
+        results = pipeline.run(
+            stock_codes=stock_codes,
+            dry_run=args.dry_run,
+            send_notification=not args.no_notify,
+            merge_notification=merge_notification
+        )
+
+        # Issue #128: 分析間隔 - 在個股分析和大盤分析之間新增延遲
+        analysis_delay = getattr(config, 'analysis_delay', 0)
+        if (
+            analysis_delay > 0
+            and config.market_review_enabled
+            and not args.no_market_review
+            and effective_region != ''
+        ):
+            logger.info(f"等待 {analysis_delay} 秒後執行大盤覆盤（避免API限流）...")
+            time.sleep(analysis_delay)
+
+        # 2. 執行大盤覆盤（如果啟用且不是僅個股模式）
+        market_report = ""
+        if (
+            config.market_review_enabled
+            and not args.no_market_review
+            and effective_region != ''
+        ):
+            review_result = run_market_review(
+                notifier=pipeline.notifier,
+                analyzer=pipeline.analyzer,
+                search_service=pipeline.search_service,
+                send_notification=not args.no_notify,
+                merge_notification=merge_notification,
+            )
+            # 如果有結果，賦值給 market_report 用於後續飛書文件生成
+            if review_result:
+                market_report = review_result
+
+        # Issue #190: 合併推送（個股+大盤覆盤）
+        if merge_notification and (results or market_report) and not args.no_notify:
+            parts = []
+            if market_report:
+                parts.append(f"# 📈 大盤覆盤\n\n{market_report}")
+            if results:
+                dashboard_content = pipeline.notifier.generate_dashboard_report(results)
+                parts.append(f"# 🚀 個股決策儀表盤\n\n{dashboard_content}")
+            if parts:
+                combined_content = "\n\n---\n\n".join(parts)
+                if pipeline.notifier.is_available():
+                    if pipeline.notifier.send(combined_content, email_send_to_all=True):
+                        logger.info("已合併推送（個股+大盤覆盤）")
+                    else:
+                        logger.warning("合併推送失敗")
+
+        # 輸出摘要
+        if results:
+            logger.info("\n===== 分析結果摘要 =====")
+            for r in sorted(results, key=lambda x: x.sentiment_score, reverse=True):
+                emoji = r.get_emoji()
+                logger.info(
+                    f"{emoji} {r.name}({r.code}): {r.operation_advice} | "
+                    f"評分 {r.sentiment_score} | {r.trend_prediction}"
+                )
+
+        logger.info("\n任務執行完成")
+
+        # === Auto backtest ===
+        try:
+            if getattr(config, 'backtest_enabled', False):
+                from src.services.backtest_service import BacktestService
+
+                logger.info("開始自動回測...")
+                service = BacktestService()
+                stats = service.run_backtest(
+                    force=False,
+                    eval_window_days=getattr(config, 'backtest_eval_window_days', 10),
+                    min_age_days=getattr(config, 'backtest_min_age_days', 14),
+                    limit=200,
+                )
+                logger.info(
+                    f"自動回測完成: processed={stats.get('processed')} saved={stats.get('saved')} "
+                    f"completed={stats.get('completed')} insufficient={stats.get('insufficient')} errors={stats.get('errors')}"
+                )
+        except Exception as e:
+            logger.warning(f"自動回測失敗（已忽略）: {e}")
+
+    except Exception as e:
+        logger.exception(f"分析流程執行失敗: {e}")
+
+
+def start_api_server(host: str, port: int, config: Config) -> None:
+    """
+    在後臺執行緒啟動 FastAPI 服務
+    
+    Args:
+        host: 監聽地址
+        port: 監聽埠
+        config: 配置物件
+    """
+    import threading
+    import uvicorn
+
+    def run_server():
+        level_name = (config.log_level or "INFO").lower()
+        uvicorn.run(
+            "api.app:app",
+            host=host,
+            port=port,
+            log_level=level_name,
+            log_config=None,
+        )
+
+    thread = threading.Thread(target=run_server, daemon=True)
+    thread.start()
+    logger.info(f"FastAPI 服務已啟動: http://{host}:{port}")
+
+
+def _is_truthy_env(var_name: str, default: str = "true") -> bool:
+    """Parse common truthy / falsy environment values."""
+    value = os.getenv(var_name, default).strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+def main() -> int:
+    """
+    主入口函式
+
+    Returns:
+        退出碼（0 表示成功）
+    """
+    # 解析命令列引數
+    args = parse_arguments()
+
+    # 載入配置（在設定日誌前載入，以獲取日誌目錄）
+    config = get_config()
+
+    # 配置日誌（輸出到控制檯和檔案）
+    setup_logging(log_prefix="stock_analysis", debug=args.debug, log_dir=config.log_dir)
+
+    logger.info("=" * 60)
+    logger.info("美股自選股智慧分析系統 啟動")
+    logger.info(f"執行時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("=" * 60)
+
+    # 驗證配置
+    warnings = config.validate()
+    for warning in warnings:
+        logger.warning(warning)
+
+    # 解析股票列表（統一為大寫 Issue #355）
+    stock_codes = None
+    if args.stocks:
+        stock_codes = [canonical_stock_code(c) for c in args.stocks.split(',') if (c or "").strip()]
+        logger.info(f"使用命令列指定的股票列表: {stock_codes}")
+
+    # === 處理 --webui / --webui-only 引數，對映到 --serve / --serve-only ===
+    if args.webui:
+        args.serve = True
+    if args.webui_only:
+        args.serve_only = True
+
+    # 相容舊版 WEBUI_ENABLED 環境變數
+    if config.webui_enabled and not (args.serve or args.serve_only):
+        args.serve = True
+
+    # === 啟動 Web 服務 (如果啟用) ===
+    start_serve = (args.serve or args.serve_only) and os.getenv("GITHUB_ACTIONS") != "true"
+
+    # 相容舊版 WEBUI_HOST/WEBUI_PORT：如果使用者未透過 --host/--port 指定，則使用舊變數
+    if start_serve:
+        if args.host == '0.0.0.0' and os.getenv('WEBUI_HOST'):
+            args.host = os.getenv('WEBUI_HOST')
+        if args.port == 8000 and os.getenv('WEBUI_PORT'):
+            args.port = int(os.getenv('WEBUI_PORT'))
+
+    if start_serve:
+        if not prepare_webui_frontend_assets():
+            logger.warning("前端靜態資源未就緒，繼續啟動 FastAPI 服務（Web 頁面可能不可用）")
+        try:
+            start_api_server(host=args.host, port=args.port, config=config)
+        except Exception as e:
+            logger.error(f"啟動 FastAPI 服務失敗: {e}")
+
+    # === 僅 Web 服務模式：不自動執行分析 ===
+    if args.serve_only:
+        logger.info("模式: 僅 Web 服務")
+        logger.info(f"Web 服務執行中: http://{args.host}:{args.port}")
+        logger.info("透過 /api/v1/analysis/stock/{code} 介面觸發分析")
+        logger.info(f"API 文件: http://{args.host}:{args.port}/docs")
+        logger.info("按 Ctrl+C 退出...")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("\n使用者中斷，程式退出")
+        return 0
+
+    try:
+        # 模式0: 回測
+        if getattr(args, 'backtest', False):
+            logger.info("模式: 回測")
+            from src.services.backtest_service import BacktestService
+
+            service = BacktestService()
+            stats = service.run_backtest(
+                code=getattr(args, 'backtest_code', None),
+                force=getattr(args, 'backtest_force', False),
+                eval_window_days=getattr(args, 'backtest_days', None),
+            )
+            logger.info(
+                f"回測完成: processed={stats.get('processed')} saved={stats.get('saved')} "
+                f"completed={stats.get('completed')} insufficient={stats.get('insufficient')} errors={stats.get('errors')}"
+            )
+            return 0
+
+        # 模式1: 僅大盤覆盤
+        if args.market_review:
+            from src.analyzer import GeminiAnalyzer
+            from src.core.market_review import run_market_review
+            from src.notification import NotificationService
+            from src.search_service import SearchService
+
+            # Issue #373: Trading day check for market-review-only mode.
+            # Do NOT use _compute_trading_day_filter here: that helper checks
+            # config.market_review_enabled, which would wrongly block an
+            # explicit --market-review invocation when the flag is disabled.
+            effective_region = None
+            if not getattr(args, 'force_run', False) and getattr(config, 'trading_day_check_enabled', True):
+                from src.core.trading_calendar import get_open_markets_today, compute_effective_region as _compute_region
+                open_markets = get_open_markets_today()
+                effective_region = _compute_region(
+                    getattr(config, 'market_review_region', 'us') or 'us', open_markets
+                )
+                if effective_region == '':
+                    logger.info("今日大盤覆盤相關市場均為非交易日，跳過執行。可使用 --force-run 強制執行。")
+                    return 0
+
+            logger.info("模式: 僅大盤覆盤")
+            notifier = NotificationService()
+
+            # 初始化搜尋服務和分析器（如果有配置）
+            search_service = None
+            analyzer = None
+
+            if config.bocha_api_keys or config.tavily_api_keys or config.brave_api_keys or config.serpapi_keys:
+                search_service = SearchService(
+                    bocha_keys=config.bocha_api_keys,
+                    tavily_keys=config.tavily_api_keys,
+                    brave_keys=config.brave_api_keys,
+                    serpapi_keys=config.serpapi_keys,
+                    news_max_age_days=config.news_max_age_days,
+                )
+
+            if config.gemini_api_key or config.openai_api_key:
+                analyzer = GeminiAnalyzer(api_key=config.gemini_api_key)
+                if not analyzer.is_available():
+                    logger.warning("AI 分析器初始化後不可用，請檢查 API Key 配置")
+                    analyzer = None
+            else:
+                logger.warning("未檢測到 API Key (Gemini/OpenAI)，將僅使用模板生成報告")
+
+            run_market_review(
+                notifier=notifier,
+                analyzer=analyzer,
+                search_service=search_service,
+                send_notification=not args.no_notify,
+            )
+            return 0
+
+        # 模式2: 定時任務模式
+        if args.schedule or config.schedule_enabled:
+            logger.info("模式: 定時任務")
+            logger.info(f"每日執行時間: {config.schedule_time}")
+
+            # Determine whether to run immediately:
+            # Command line arg --no-run-immediately overrides config if present.
+            # Otherwise use config (defaults to True).
+            should_run_immediately = config.schedule_run_immediately
+            if getattr(args, 'no_run_immediately', False):
+                should_run_immediately = False
+
+            logger.info(f"啟動時立即執行: {should_run_immediately}")
+
+            from src.scheduler import run_with_schedule
+
+            def scheduled_task():
+                run_full_analysis(config, args, stock_codes)
+
+            run_with_schedule(
+                task=scheduled_task,
+                schedule_time=config.schedule_time,
+                run_immediately=should_run_immediately
+            )
+            return 0
+
+        # 模式3: 正常單次執行
+        if config.run_immediately:
+            run_full_analysis(config, args, stock_codes)
+        else:
+            logger.info("配置為不立即執行分析 (RUN_IMMEDIATELY=false)")
+
+        logger.info("\n程式執行完成")
+
+        # 如果啟用了服務且是非定時任務模式，保持程式執行
+        keep_running = start_serve and not (args.schedule or config.schedule_enabled)
+        if keep_running:
+            logger.info("API 服務執行中 (按 Ctrl+C 退出)...")
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
+
+        return 0
+
+    except KeyboardInterrupt:
+        logger.info("\n使用者中斷，程式退出")
+        return 130
+
+    except Exception as e:
+        logger.exception(f"程式執行失敗: {e}")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

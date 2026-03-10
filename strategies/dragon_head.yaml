@@ -1,0 +1,41 @@
+# Dragon Head Strategy / 龍頭策略
+# Identifies sector leaders during sector rotation cycles.
+
+name: dragon_head
+display_name: 龍頭策略
+description: 板塊輪動中識別龍頭股。適用於板塊啟動或行業催化劑出現時。
+category: trend
+core_rules: [2, 7]
+required_tools:
+  - get_realtime_quote
+  - get_sector_rankings
+  - search_stock_news
+
+instructions: |
+  **龍頭策略（Dragon Head Strategy）**
+
+  評估標準：
+
+  1. **板塊領漲地位**：
+     - 使用 `get_sector_rankings` 檢查該股所在板塊是否為近期漲幅前列。
+     - 確認該股是否在板塊啟動週期中率先上漲或漲停。
+
+  2. **換手率與動能**（關聯理念7：強勢趨勢股放寬）：
+     - 使用 `get_realtime_quote` 檢查換手率。龍頭股換手率通常 > 5%。
+     - 量比 > 1.5 說明有活躍的交易興趣。
+
+  3. **相對強度**：
+     - 對比個股漲跌幅與板塊平均值。
+     - 真正的龍頭在上漲日應跑贏板塊 2% 以上。
+
+  4. **新聞催化**：
+     - 使用 `search_stock_news` 搜索板塊級催化劑（政策、事件、業績）。
+     - 龍頭行情常伴隨板塊整體催化。
+
+  5. **乖離率檢查**（關聯理念1：嚴進策略）：
+     - 龍頭股可適當放寬乖離率至 7%，但超過 10% 仍需謹慎。
+
+  評分調整：
+  - 確認為龍頭股：sentiment_score +10
+  - 板塊正處於主動輪動期：額外 +5
+  - 在 `buy_reason` 中注明"龍頭策略"判斷結果。

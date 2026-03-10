@@ -1,0 +1,46 @@
+# Bottom Volume Surge Strategy / 底部放量
+# After extended decline, price stabilizes and volume spikes. Potential reversal.
+
+name: bottom_volume
+display_name: 底部放量
+description: 檢測長期下跌後底部放量信號，潛在趨勢反轉信號。
+category: reversal
+core_rules: [2, 5]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+
+instructions: |
+  **底部放量（Bottom Volume Surge Strategy）**
+
+  反轉判定標準：
+
+  1. **持續下跌確認**：
+     - 使用 `get_daily_history`（30日）。
+     - 股價從 20 日高點到近期低點跌幅 > 15%。
+     - `analyze_trend` → trend_status 應為 BEAR 或 STRONG_BEAR。
+
+  2. **量能異動**：
+     - 當日成交量 > 5 日均量的 3 倍。
+     - 使用 `get_realtime_quote` → volume_ratio > 3.0。
+     - 該異動應出現在前期極度縮量之後。
+
+  3. **價格企稳**：
+     - 當日K線收陽（收盤價 > 開盤價）。
+     - 價格守住近期低點。
+     - 最好出現長下影線，顯示買方支撐。
+
+  4. **確認因素**（關聯理念5：風險排查）：
+     - 通過 `search_stock_news` 確認是否有基本面催化。
+     - 籌碼分佈：平均成本接近現價（成本收斂）。
+
+  5. **風險提示**（關聯理念2：趨勢交易）：
+     - 這是反轉信號，風險高於趨勢跟蹤。
+     - 倉位建議較小（最多 2-3 成）。
+     - 止損必須嚴格（設在近期低點下方）。
+
+  評分調整：
+  - 底部放量確認：sentiment_score +8
+  - 配合陽線 + 新聞催化：額外 +5
+  - 在 `buy_reason` 和 `pattern_analysis` 中注明"底部放量"。
+  - 止損設在近期低點。

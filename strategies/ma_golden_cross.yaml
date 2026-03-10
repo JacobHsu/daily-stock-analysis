@@ -1,0 +1,43 @@
+# MA Golden Cross Strategy / 均線金叉
+# MA5 crosses above MA10 (or MA10 above MA20) with volume confirmation.
+
+name: ma_golden_cross
+display_name: 均線金叉
+description: 檢測均線金叉配合量能確認信號，經典的趨勢反轉/延續信號。
+category: trend
+core_rules: [1, 2, 3]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+
+instructions: |
+  **均線金叉（MA Golden Cross Strategy）**
+
+  信號判定標準：
+
+  1. **金叉檢測**（關聯理念2：趨勢交易）：
+     - 使用 `analyze_trend` 檢查均線排列和 MACD 狀態。
+     - 主信號：MA5 在最近 3 個交易日內上穿 MA10。
+     - 強信號：MA10 上穿 MA20（更慢但更可靠）。
+     - 檢查 MACD 狀態是否為金叉或零軸上方金叉。
+
+  2. **量能確認**（關聯理念3：效率優先）：
+     - 金叉日成交量應高於 5 日均量。
+     - 使用 `get_daily_history` 驗證。
+     - 金叉日量比 > 1.2 為積極信號。
+
+  3. **趨勢背景**：
+     - 盤整後金叉：最強信號。
+     - 上升趨勢中金叉：延續信號。
+     - 深度下跌中金叉：弱信號，需更多確認。
+
+  4. **價格位置**（關聯理念1：嚴進策略）：
+     - 價格應在交叉均線附近或上方。
+     - 乖離率 < 5% — 避免追高延遲入場。
+
+  評分調整：
+  - MA5 × MA10 金叉配合量能：sentiment_score +10
+  - MA10 × MA20 金叉：sentiment_score +8
+  - MACD 零軸上方金叉：額外 +5
+  - 在 `ma_analysis` 和 `buy_reason` 中注明"均線金叉"。
+  - 理想買點設在交叉均線水平附近。

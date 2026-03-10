@@ -1,0 +1,1562 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Daily Stock Analysis API",
+    "description": "A股自選股智能分析系統 API\n\n## 功能模組\n- 股票分析：觸發 AI 智能分析\n- 歷史記錄：查詢歷史分析報告\n- 股票資料：取得行情資料\n\n## 認證方式\n目前版本暫無認證要求",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Daily Stock Analysis Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "本地開發伺服器"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "健康檢查介面"
+    },
+    {
+      "name": "Analysis",
+      "description": "股票分析相關介面"
+    },
+    {
+      "name": "History",
+      "description": "歷史記錄相關介面"
+    },
+    {
+      "name": "SystemConfig",
+      "description": "系統配置管理介面"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "API 根路由",
+        "description": "回傳 API 運行狀態資訊",
+        "operationId": "root",
+        "responses": {
+          "200": {
+            "description": "API 正常運行",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RootResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "健康檢查",
+        "description": "用於負載平衡器或監控系統檢查服務狀態",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "服務健康",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analysis/analyze": {
+      "post": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "觸發股票分析",
+        "description": "啟動 AI 智能分析任務，支援單支或多支股票批次分析",
+        "operationId": "triggerAnalysis",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "分析完成（同步模式）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "分析任務已接受（非同步模式）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "請求參數錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "股票正在分析中，拒絕重複提交",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateTaskError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "分析失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analysis/tasks": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "取得分析任務列表",
+        "description": "取得目前所有分析任務，支援依狀態篩選。回傳進行中和最近完成的任務。",
+        "operationId": "getAnalysisTasks",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "篩選狀態：pending, processing, completed, failed（支援逗號分隔多個）",
+            "schema": {
+              "type": "string",
+              "example": "pending,processing"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "回傳數量限制",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "任務列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analysis/tasks/stream": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "任務狀態 SSE 串流",
+        "description": "透過 Server-Sent Events 即時推送任務狀態變化。\n\n## 事件類型\n- `connected`: 連線成功\n- `task_created`: 新任務建立\n- `task_started`: 任務開始執行\n- `task_completed`: 任務完成\n- `task_failed`: 任務失敗\n- `heartbeat`: 心跳（每 30 秒）",
+        "operationId": "taskStream",
+        "responses": {
+          "200": {
+            "description": "SSE 事件串流",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "example": "event: task_created\ndata: {\"task_id\": \"abc123\", \"stock_code\": \"AAPL\", \"status\": \"pending\"}\n\n"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/history": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "summary": "取得歷史分析列表",
+        "description": "分頁取得歷史分析記錄摘要，支援依股票代碼和日期範圍篩選",
+        "operationId": "getHistoryList",
+        "parameters": [
+          {
+            "name": "stock_code",
+            "in": "query",
+            "description": "股票代碼篩選",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "開始日期 (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "結束日期 (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "頁碼（從 1 開始）",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "每頁數量",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "歷史記錄列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/history/{query_id}": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "summary": "取得歷史報告詳情",
+        "description": "根據 query_id 取得完整的歷史分析報告",
+        "operationId": "getHistoryDetail",
+        "parameters": [
+          {
+            "name": "query_id",
+            "in": "path",
+            "required": true,
+            "description": "分析記錄唯一識別碼",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "報告詳情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "報告不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/history/{query_id}/news": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "summary": "取得歷史報告關聯新聞",
+        "description": "根據 query_id 取得關聯的新聞情報列表（為空也回傳 200）",
+        "operationId": "getHistoryNews",
+        "parameters": [
+          {
+            "name": "query_id",
+            "in": "path",
+            "required": true,
+            "description": "分析記錄唯一識別碼",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "回傳數量限制",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "新聞情報列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsIntelResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "伺服器錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/config": {
+      "get": {
+        "tags": [
+          "SystemConfig"
+        ],
+        "summary": "取得系統配置",
+        "description": "讀取目前系統配置並回傳分類後的欄位列表。敏感欄位回傳真實值，前端自行控制顯示／隱藏。",
+        "operationId": "getSystemConfig",
+        "parameters": [
+          {
+            "name": "include_schema",
+            "in": "query",
+            "description": "是否帶入欄位元資料（預設 true）",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "配置讀取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未認證",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "讀取失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "SystemConfig"
+        ],
+        "summary": "更新系統配置",
+        "description": "依鍵更新系統配置。若欄位值為遮罩（如 ******），則保留原值不覆蓋。",
+        "operationId": "updateSystemConfig",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSystemConfigRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateSystemConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "參數驗證失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "配置版本衝突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigConflictResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "更新失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/config/validate": {
+      "post": {
+        "tags": [
+          "SystemConfig"
+        ],
+        "summary": "驗證配置",
+        "description": "僅驗證提交內容，不寫入 .env。用於前端儲存前預先檢查。",
+        "operationId": "validateSystemConfig",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateSystemConfigRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "驗證完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateSystemConfigResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "驗證失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/config/schema": {
+      "get": {
+        "tags": [
+          "SystemConfig"
+        ],
+        "summary": "取得配置欄位元資料",
+        "description": "回傳配置分類、欄位類型、驗證規則和 UI 控件建議，用於前端動態渲染。",
+        "operationId": "getSystemConfigSchema",
+        "responses": {
+          "200": {
+            "description": "元資料讀取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigSchemaResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "元資料讀取失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RootResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Daily Stock Analysis API is running"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.0.0"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "AnalyzeRequest": {
+        "type": "object",
+        "properties": {
+          "stock_code": {
+            "type": "string",
+            "description": "單支股票代碼",
+            "example": "AAPL"
+          },
+          "stock_codes": {
+            "type": "array",
+            "description": "多支股票代碼（與 stock_code 二選一）",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "AAPL",
+              "TSLA"
+            ]
+          },
+          "report_type": {
+            "type": "string",
+            "enum": [
+              "simple",
+              "detailed"
+            ],
+            "default": "detailed",
+            "description": "報告類型"
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否強制刷新（忽略快取）"
+          },
+          "async_mode": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否使用非同步模式"
+          }
+        }
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "description": "分析記錄唯一識別碼"
+          },
+          "stock_code": {
+            "type": "string"
+          },
+          "stock_name": {
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/AnalysisReport"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "query_id",
+          "stock_code",
+          "report",
+          "created_at"
+        ]
+      },
+      "TaskAccepted": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "任務 ID，用於查詢狀態"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing"
+            ],
+            "example": "pending"
+          },
+          "message": {
+            "type": "string",
+            "example": "Analysis task accepted"
+          }
+        },
+        "required": [
+          "task_id",
+          "status"
+        ]
+      },
+      "TaskStatus": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "integer",
+            "description": "進度百分比 (0-100)"
+          },
+          "result": {
+            "$ref": "#/components/schemas/AnalysisResult"
+          },
+          "error": {
+            "type": "string",
+            "description": "錯誤訊息（僅在 failed 時存在）"
+          }
+        },
+        "required": [
+          "task_id",
+          "status"
+        ]
+      },
+      "TaskInfo": {
+        "type": "object",
+        "description": "任務詳情（用於任務列表和 SSE 事件）",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "任務 ID"
+          },
+          "stock_code": {
+            "type": "string",
+            "description": "股票代碼"
+          },
+          "stock_name": {
+            "type": "string",
+            "description": "股票名稱"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ],
+            "description": "任務狀態"
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "進度百分比"
+          },
+          "message": {
+            "type": "string",
+            "description": "狀態訊息"
+          },
+          "report_type": {
+            "type": "string",
+            "enum": [
+              "simple",
+              "detailed"
+            ],
+            "description": "報告類型"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "建立時間"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "開始執行時間"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "完成時間"
+          },
+          "error": {
+            "type": "string",
+            "description": "錯誤訊息"
+          }
+        },
+        "required": [
+          "task_id",
+          "stock_code",
+          "status",
+          "created_at"
+        ]
+      },
+      "TaskListResponse": {
+        "type": "object",
+        "description": "任務列表回應",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "任務總數"
+          },
+          "pending": {
+            "type": "integer",
+            "description": "等待中的任務數"
+          },
+          "processing": {
+            "type": "integer",
+            "description": "處理中的任務數"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskInfo"
+            },
+            "description": "任務列表"
+          }
+        },
+        "required": [
+          "total",
+          "pending",
+          "processing",
+          "tasks"
+        ]
+      },
+      "DuplicateTaskError": {
+        "type": "object",
+        "description": "重複任務錯誤回應",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "duplicate_task",
+            "description": "錯誤類型"
+          },
+          "message": {
+            "type": "string",
+            "example": "股票 AAPL 正在分析中",
+            "description": "錯誤訊息"
+          },
+          "stock_code": {
+            "type": "string",
+            "example": "AAPL",
+            "description": "股票代碼"
+          },
+          "existing_task_id": {
+            "type": "string",
+            "example": "abc123def456",
+            "description": "已存在的任務 ID"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "stock_code",
+          "existing_task_id"
+        ]
+      },
+      "HistoryListResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "總記錄數"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryItem"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "items"
+        ]
+      },
+      "NewsIntelItem": {
+        "type": "object",
+        "description": "新聞情報條目",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "新聞標題"
+          },
+          "snippet": {
+            "type": "string",
+            "description": "新聞摘要（最多50字）"
+          },
+          "url": {
+            "type": "string",
+            "description": "新聞連結"
+          }
+        },
+        "required": [
+          "title",
+          "url"
+        ]
+      },
+      "NewsIntelResponse": {
+        "type": "object",
+        "description": "新聞情報回應",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "新聞筆數"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewsIntelItem"
+            },
+            "description": "新聞列表"
+          }
+        },
+        "required": [
+          "total",
+          "items"
+        ]
+      },
+      "HistoryItem": {
+        "type": "object",
+        "description": "歷史記錄摘要（列表展示用）",
+        "properties": {
+          "query_id": {
+            "type": "string"
+          },
+          "stock_code": {
+            "type": "string"
+          },
+          "stock_name": {
+            "type": "string"
+          },
+          "report_type": {
+            "type": "string"
+          },
+          "sentiment_score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "operation_advice": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "query_id",
+          "stock_code",
+          "created_at"
+        ]
+      },
+      "AnalysisReport": {
+        "type": "object",
+        "description": "完整分析報告",
+        "properties": {
+          "meta": {
+            "type": "object",
+            "description": "元資訊",
+            "properties": {
+              "query_id": {
+                "type": "string"
+              },
+              "stock_code": {
+                "type": "string"
+              },
+              "stock_name": {
+                "type": "string"
+              },
+              "report_type": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "model_used": {
+                "type": "string",
+                "description": "分析使用的 LLM 模型（完整名稱，如 gemini/gemini-2.0-flash）"
+              }
+            }
+          },
+          "summary": {
+            "type": "object",
+            "description": "概覽區（首屏展示）",
+            "properties": {
+              "analysis_summary": {
+                "type": "string",
+                "description": "關鍵結論"
+              },
+              "operation_advice": {
+                "type": "string",
+                "description": "操作建議"
+              },
+              "trend_prediction": {
+                "type": "string",
+                "description": "趨勢預測"
+              },
+              "sentiment_score": {
+                "type": "integer",
+                "description": "情緒評分 (0-100)"
+              },
+              "sentiment_label": {
+                "type": "string",
+                "description": "情緒標籤",
+                "enum": [
+                  "極度悲觀",
+                  "悲觀",
+                  "中性",
+                  "樂觀",
+                  "極度樂觀"
+                ]
+              }
+            }
+          },
+          "strategy": {
+            "type": "object",
+            "description": "策略點位區",
+            "properties": {
+              "ideal_buy": {
+                "type": "string",
+                "description": "理想買入價"
+              },
+              "secondary_buy": {
+                "type": "string",
+                "description": "第二買入價"
+              },
+              "stop_loss": {
+                "type": "string",
+                "description": "止損價"
+              },
+              "take_profit": {
+                "type": "string",
+                "description": "止盈價"
+              }
+            }
+          },
+          "details": {
+            "type": "object",
+            "description": "詳情區（可折疊）",
+            "properties": {
+              "news_content": {
+                "type": "string",
+                "description": "新聞摘要"
+              },
+              "raw_result": {
+                "type": "object",
+                "description": "原始分析結果（JSON）"
+              },
+              "context_snapshot": {
+                "type": "object",
+                "description": "分析時上下文快照（JSON）"
+              }
+            }
+          }
+        },
+        "required": [
+          "meta",
+          "summary"
+        ]
+      },
+      "StockQuote": {
+        "type": "object",
+        "description": "股票即時行情",
+        "properties": {
+          "stock_code": {
+            "type": "string"
+          },
+          "stock_name": {
+            "type": "string"
+          },
+          "current_price": {
+            "type": "number"
+          },
+          "change": {
+            "type": "number",
+            "description": "漲跌額"
+          },
+          "change_percent": {
+            "type": "number",
+            "description": "漲跌幅 (%)"
+          },
+          "open": {
+            "type": "number"
+          },
+          "high": {
+            "type": "number"
+          },
+          "low": {
+            "type": "number"
+          },
+          "prev_close": {
+            "type": "number"
+          },
+          "volume": {
+            "type": "number",
+            "description": "成交量（股）"
+          },
+          "amount": {
+            "type": "number",
+            "description": "成交額（元）"
+          },
+          "update_time": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "stock_code",
+          "current_price"
+        ]
+      },
+      "SystemConfigFieldSchema": {
+        "type": "object",
+        "description": "系統配置欄位元資料",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "配置鍵名（ENV 變數）",
+            "example": "GEMINI_API_KEY"
+          },
+          "title": {
+            "type": "string",
+            "description": "前端展示標題",
+            "example": "Gemini API Key"
+          },
+          "description": {
+            "type": "string",
+            "description": "欄位說明"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "base",
+              "data_source",
+              "ai_model",
+              "notification",
+              "system",
+              "backtest",
+              "uncategorized"
+            ],
+            "description": "分類"
+          },
+          "data_type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "array",
+              "json",
+              "time"
+            ]
+          },
+          "ui_control": {
+            "type": "string",
+            "enum": [
+              "text",
+              "password",
+              "number",
+              "select",
+              "textarea",
+              "switch",
+              "time"
+            ],
+            "description": "前端控件建議"
+          },
+          "is_sensitive": {
+            "type": "boolean"
+          },
+          "is_required": {
+            "type": "boolean"
+          },
+          "is_editable": {
+            "type": "boolean"
+          },
+          "default_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "可選值列表（用於 select）"
+          },
+          "validation": {
+            "type": "object",
+            "description": "驗證規則定義（min/max/regex/enum/custom）"
+          },
+          "display_order": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "category",
+          "data_type",
+          "ui_control",
+          "is_sensitive",
+          "is_required",
+          "is_editable",
+          "display_order"
+        ]
+      },
+      "SystemConfigCategorySchema": {
+        "type": "object",
+        "description": "配置分類元資料",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "display_order": {
+            "type": "integer"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemConfigFieldSchema"
+            }
+          }
+        },
+        "required": [
+          "category",
+          "title",
+          "display_order",
+          "fields"
+        ]
+      },
+      "SystemConfigSchemaResponse": {
+        "type": "object",
+        "description": "配置元資料回應",
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "example": "2026-02-09"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemConfigCategorySchema"
+            }
+          }
+        },
+        "required": [
+          "schema_version",
+          "categories"
+        ]
+      },
+      "SystemConfigItem": {
+        "type": "object",
+        "description": "系統配置項（含遮罩顯示值）",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "description": "目前配置值（敏感欄位回傳真實值）"
+          },
+          "raw_value_exists": {
+            "type": "boolean",
+            "description": "敏感欄位是否存在真實值（不回傳真實值）"
+          },
+          "is_masked": {
+            "type": "boolean"
+          },
+          "schema": {
+            "$ref": "#/components/schemas/SystemConfigFieldSchema"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "raw_value_exists",
+          "is_masked"
+        ]
+      },
+      "SystemConfigResponse": {
+        "type": "object",
+        "description": "系統配置讀取回應",
+        "properties": {
+          "config_version": {
+            "type": "string",
+            "description": "配置版本（用於樂觀鎖）",
+            "example": "2026-02-09T13:20:31Z:sha256:4f9a..."
+          },
+          "mask_token": {
+            "type": "string",
+            "example": "******"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemConfigItem"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "config_version",
+          "mask_token",
+          "items"
+        ]
+      },
+      "SystemConfigUpdateItem": {
+        "type": "object",
+        "description": "配置更新項",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "STOCK_LIST"
+          },
+          "value": {
+            "type": "string",
+            "description": "欄位新值；若敏感欄位傳入遮罩 token 則表示保持原值"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ]
+      },
+      "UpdateSystemConfigRequest": {
+        "type": "object",
+        "description": "系統配置更新請求",
+        "properties": {
+          "config_version": {
+            "type": "string"
+          },
+          "mask_token": {
+            "type": "string",
+            "default": "******"
+          },
+          "reload_now": {
+            "type": "boolean",
+            "default": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemConfigUpdateItem"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "config_version",
+          "items"
+        ]
+      },
+      "UpdateSystemConfigResponse": {
+        "type": "object",
+        "description": "系統配置更新結果",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "config_version": {
+            "type": "string"
+          },
+          "applied_count": {
+            "type": "integer"
+          },
+          "skipped_masked_count": {
+            "type": "integer"
+          },
+          "reload_triggered": {
+            "type": "boolean"
+          },
+          "updated_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "success",
+          "config_version",
+          "applied_count",
+          "skipped_masked_count",
+          "reload_triggered",
+          "updated_keys"
+        ]
+      },
+      "ValidateSystemConfigRequest": {
+        "type": "object",
+        "description": "配置驗證請求",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemConfigUpdateItem"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ConfigValidationIssue": {
+        "type": "object",
+        "description": "配置驗證問題",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "invalid_format"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ]
+          },
+          "expected": {
+            "type": "string"
+          },
+          "actual": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "code",
+          "message",
+          "severity"
+        ]
+      },
+      "ValidateSystemConfigResponse": {
+        "type": "object",
+        "description": "配置驗證結果",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigValidationIssue"
+            }
+          }
+        },
+        "required": [
+          "valid",
+          "issues"
+        ]
+      },
+      "SystemConfigValidationErrorResponse": {
+        "type": "object",
+        "description": "配置更新驗證失敗回應",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "validation_failed"
+          },
+          "message": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigValidationIssue"
+            }
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "issues"
+        ]
+      },
+      "SystemConfigConflictResponse": {
+        "type": "object",
+        "description": "配置版本衝突回應",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "config_version_conflict"
+          },
+          "message": {
+            "type": "string"
+          },
+          "current_config_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "current_config_version"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "錯誤類型"
+          },
+          "message": {
+            "type": "string",
+            "description": "錯誤詳情"
+          },
+          "detail": {
+            "type": "object",
+            "description": "附加錯誤資訊"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ]
+      }
+    }
+  }
+}

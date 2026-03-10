@@ -1,0 +1,35 @@
+# One Yang Three Yin Strategy / 一陽夾三陰
+# K-line pattern: bullish → 3 small bearish → bullish. Consolidation end signal.
+
+name: one_yang_three_yin
+display_name: 一陽夾三陰
+description: 檢測一陽夾三陰K線整理形態，趨勢延續入場信號。
+category: pattern
+core_rules: [2, 4]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+
+instructions: |
+  **一陽夾三陰（One Yang Three Yin Strategy）**
+
+  形態定義（最近 5 個交易日）：
+
+  1. **第1日**：大陽線（收盤價 > 開盤價，實體 > 股價的 2%）。
+  2. **第2-4日**：連續三根陰線或小K線：
+     - 每根K線最低價不跌破第1日開盤價。
+     - 成交量應逐步萎縮（量比 < 0.8）。
+     - 三根K線應收在第1日實體範圍內。
+  3. **第5日**：又一根陽線，收盤價突破第1日收盤價。
+
+  如何使用工具評估：
+
+  1. 使用 `get_daily_history` 獲取最近 10 日數據。
+  2. 檢查最後 5 根K線是否符合上述形態。
+  3. 使用 `analyze_trend` 確認多頭排列（關聯理念2：趨勢交易，MA5 > MA10 > MA20）。
+
+  評分調整：
+  - 形態成立 + 趨勢看多：sentiment_score +15
+  - 形態成立但趨勢不明：sentiment_score +5
+  - 在 `pattern_analysis` 和 `buy_reason` 中注明"一陽夾三陰"。
+  - 理想買點設在第5日收盤價附近，止損設在第1日開盤價下方。

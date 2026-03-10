@@ -1,0 +1,44 @@
+# Default Bull Trend Strategy / 默認多頭趨勢
+
+name: bull_trend
+display_name: 默認多頭趨勢
+description: 默認個股分析優先策略，識別多頭排列、趨勢延續與回踩低吸機會。
+category: trend
+core_rules: [1, 2, 3]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+
+instructions: |
+  **默認多頭趨勢（Default Bull Trend Strategy）**
+
+  適用場景：
+  - 常規個股分析的默認策略。
+  - 優先尋找"趨勢向上 + 風險可控 + 不追高"的機會。
+
+  分析框架：
+
+  1. **趨勢確認（優先級最高）**
+     - 使用 `analyze_trend` 判斷 MA5/MA10/MA20 排列。
+     - MA5 >= MA10 >= MA20 且 MA20 斜率向上，視為多頭結構。
+     - 若價格顯著跌破 MA20，則降低看多權重。
+
+  2. **位置與節奏**
+     - 優先"回踩不破"而非"高位追漲"。
+     - 當價格距離 MA5/MA10 過遠時，提示等待回踩。
+     - 放量突破有效阻力時可提高勝率評級。
+
+  3. **量價驗證**
+     - 使用 `get_daily_history` 檢查突破日/反彈日是否放量。
+     - 縮量上漲需謹慎，放量滯漲需警惕分歧。
+
+  4. **交易建議輸出**
+     - 輸出明確的"買入/觀望/減倉"傾向及觸發條件。
+     - 必須給出止損參考（如 MA20 下方或結構低點）。
+     - 若無清晰優勢，明確寫"暫不出手"，避免過度交易。
+
+  評分調整建議：
+  - 多頭排列 + 趨勢強度良好：`sentiment_score +12`
+  - 回踩關鍵均線後企稳：`sentiment_score +8`
+  - 放量突破關鍵阻力：`sentiment_score +10`
+  - 跌破 MA20 或趨勢轉弱：`sentiment_score -12`
