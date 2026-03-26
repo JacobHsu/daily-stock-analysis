@@ -314,12 +314,17 @@ class NotificationService(
 
         # Issue #262: summary_only 時僅輸出摘要，跳過個股詳情
         if self._report_summary_only:
-            report_lines.extend(["## 📊 分析結果摘要", ""])
+            report_lines.extend([
+                "## 📊 分析結果摘要",
+                "",
+                "| 股票 | 代號 | 決策 | 評分 | 趨勢 |",
+                "|------|------|------|------|------|",
+            ])
             for r in sorted_results:
                 emoji = r.get_emoji()
                 report_lines.append(
-                    f"{emoji} **{r.name}({r.code})**: {r.operation_advice} | "
-                    f"評分 {r.sentiment_score} | {r.trend_prediction}"
+                    f"| {r.name} | {r.code} | {emoji} {r.operation_advice} | "
+                    f"{r.sentiment_score} | {r.trend_prediction} |"
                 )
         else:
             report_lines.extend(["## 📈 個股詳細分析", ""])
@@ -570,13 +575,15 @@ class NotificationService(
             report_lines.extend([
                 "## 📊 分析結果摘要",
                 "",
+                "| 股票 | 代號 | 決策 | 評分 | 趨勢 |",
+                "|------|------|------|------|------|",
             ])
             for r in sorted_results:
                 _, signal_emoji, _ = self._get_signal_level(r)
                 display_name = self._escape_md(r.name)
                 report_lines.append(
-                    f"{signal_emoji} **{display_name}({r.code})**: {r.operation_advice} | "
-                    f"評分 {r.sentiment_score} | {r.trend_prediction}"
+                    f"| {display_name} | {r.code} | {signal_emoji} {r.operation_advice} | "
+                    f"{r.sentiment_score} | {r.trend_prediction} |"
                 )
             report_lines.extend([
                 "",
@@ -1141,25 +1148,14 @@ class NotificationService(
         lines.extend([
             "### 📈 當日行情",
             "",
-            "| 收盤 | 昨收 | 開盤 | 最高 | 最低 | 漲跌幅 | 漲跌額 | 振幅 | 成交量 | 成交額 |",
-            "|------|------|------|------|------|-------|-------|------|--------|--------|",
+            "| 收盤 | 昨收 | 開盤 | 最高 | 最低 | 漲跌幅 | 漲跌額 | 振幅 | 成交量 |",
+            "|------|------|------|------|------|-------|-------|------|--------|",
             f"| {snapshot.get('close', 'N/A')} | {snapshot.get('prev_close', 'N/A')} | "
             f"{snapshot.get('open', 'N/A')} | {snapshot.get('high', 'N/A')} | "
             f"{snapshot.get('low', 'N/A')} | {snapshot.get('pct_chg', 'N/A')} | "
             f"{snapshot.get('change_amount', 'N/A')} | {snapshot.get('amplitude', 'N/A')} | "
-            f"{snapshot.get('volume', 'N/A')} | {snapshot.get('amount', 'N/A')} |",
+            f"{snapshot.get('volume', 'N/A')} |",
         ])
-
-        if "price" in snapshot:
-            raw_source = snapshot.get('source', 'N/A')
-            display_source = self._SOURCE_DISPLAY_NAMES.get(raw_source, raw_source)
-            lines.extend([
-                "",
-                "| 當前價 | 量比 | 換手率 | 行情來源 |",
-                "|-------|------|--------|----------|",
-                f"| {snapshot.get('price', 'N/A')} | {snapshot.get('volume_ratio', 'N/A')} | "
-                f"{snapshot.get('turnover_rate', 'N/A')} | {display_source} |",
-            ])
 
         lines.append("")
 
